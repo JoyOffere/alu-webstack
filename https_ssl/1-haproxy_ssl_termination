@@ -33,40 +33,15 @@ defaults
         errorfile 503 /etc/haproxy/errors/503.http
         errorfile 504 /etc/haproxy/errors/504.http
 
-###########################################
-#
-# HAProxy Stats page
-#
-###########################################
-listen stats
-  bind *:9090
-  mode  http
-  maxconn  10
-  stats  enable
-  stats  hide-version
-  stats  realm Haproxy\ Statistics
-  stats  uri /
-  stats  auth admin:admin
-
-frontend ALL
-        bind *:80
-        bind *:443 ssl crt /etc/ssl_cert/joyoffere.tech/joyoffere.tech.pem
+frontend www.joyoffere.tech
         mode http
+        bind :80
+        bind :443 ssl crt /etc/letsencrypt/live/www.joyoffere.tech/combined.pem
+        http-request redirect scheme https code 301 unless { ssl_fc }
+        default_backend cprogram_servers
 
-        # Define path for lets encrypt
-        acl is_letsencrypt path_beg -i /.well-known/acme-challenge/
-
-        # Redirect all requests on port 80(http) to 443(https)
-        # We only have one exception which is letsencrypt - because letsencrypt needs to hit us on port 80 to perform its job
-        redirect scheme https code 301 if !{ ssl_fc } !is_letsencrypt
-
-        use_backend letsencrypt if is_letsencrypt
-        default_backend lb-backend
-
-backend letsencrypt
-        server letsencrypt 127.0.0.1:8888
- 
-backend lb-backend
+backend cprogram_servers
+        mode http
         balance roundrobin
-        server web-01 67.202.10.176 check
-        server web-02 34.227.8.144 check
+        server 5841-web-01 67.202.10.176:80 check
+        server 5841-web-02 34.227.8.144:80 check
